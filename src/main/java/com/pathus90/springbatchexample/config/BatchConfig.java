@@ -1,102 +1,49 @@
 package com.pathus90.springbatchexample.config;
 
+import com.pathus90.springbatchexample.tasklet.FileDeletingTasklet;
+import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.LineMapper;
-import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.EnableScheduling;
-
-import com.pathus90.springbatchexample.batch.StudentProcessor;
-import com.pathus90.springbatchexample.batch.StudentWriter;
-import com.pathus90.springbatchexample.model.Student;
-import com.pathus90.springbatchexample.model.StudentFieldSetMapper;
 
 @Configuration
 @EnableBatchProcessing
 @EnableScheduling
+@RequiredArgsConstructor
 public class BatchConfig {
 
-    private static final String FILE_NAME = "results.csv";
-    private static final String JOB_NAME = "listStudentsJob";
-    private static final String STEP_NAME = "processingStep";
-    private static final String READER_NAME = "studentItemReader";
+    private static final String JOB_NAME = "purgeOutDatedFilesJob";
 
-    @Value("${header.names}")
-    private String names;
+    @Value("${piv.parameters.server.path}")
+    private String serverPathAbsolute;
 
-    @Value("${line.delimiter}")
-    private String delimiter;
+    private final JobBuilderFactory jobBuilderFactory;
 
-    @Autowired
-    private JobBuilderFactory jobBuilderFactory;
-
-    @Autowired
-    private StepBuilderFactory stepBuilderFactory;
+    private final StepBuilderFactory stepBuilderFactory;
 
     @Bean
-    public Step studentStep() {
-        return stepBuilderFactory.get(STEP_NAME)
-                .<Student, Student>chunk(5)
-                .reader(studentItemReader())
-                .processor(studentItemProcessor())
-                .writer(studentItemWriter())
-                .build();
+    public Step FileDeletingStep() {
+        return stepBuilderFactory.get("fileDeletingStep").tasklet(fileDeletingTasklet()).build();
     }
 
     @Bean
-    public Job listStudentsJob(Step step1) {
+    public FileDeletingTasklet fileDeletingTasklet() {
+        FileDeletingTasklet tasklet = new FileDeletingTasklet();
+        tasklet.setDirectory(serverPathAbsolute);
+        return tasklet;
+    }
+
+    @Bean
+    public Job FileDeletingJob(Step step) {
         return jobBuilderFactory.get(JOB_NAME)
-                .start(step1)
-                .build();
-    }
-    
-    @Bean
-    public ItemReader<Student> studentItemReader() {
-        FlatFileItemReader<Student> reader = new FlatFileItemReader<>();
-        reader.setResource(new ClassPathResource(FILE_NAME));
-        reader.setName(READER_NAME);
-        reader.setLinesToSkip(1);
-        reader.setLineMapper(lineMapper());
-        return reader;
-
+            .start(step)
+            .build();
     }
 
-    @Bean
-    public LineMapper<Student> lineMapper() {
-
-        final DefaultLineMapper<Student> defaultLineMapper = new DefaultLineMapper<>();
-        final DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
-        lineTokenizer.setDelimiter(delimiter);
-        lineTokenizer.setStrict(false);
-        lineTokenizer.setNames(names.split(delimiter));
-
-        final StudentFieldSetMapper fieldSetMapper = new StudentFieldSetMapper();
-        defaultLineMapper.setLineTokenizer(lineTokenizer);
-        defaultLineMapper.setFieldSetMapper(fieldSetMapper);
-
-        return defaultLineMapper;
-    }
-
-    @Bean
-    public ItemProcessor<Student, Student> studentItemProcessor() {
-        return new StudentProcessor();
-    }
-
-    @Bean
-    public ItemWriter<Student> studentItemWriter() {
-        return new StudentWriter();
-    }
 }
