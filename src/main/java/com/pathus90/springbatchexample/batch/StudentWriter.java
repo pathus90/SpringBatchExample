@@ -18,9 +18,11 @@ public class StudentWriter implements ItemWriter<Student> {
 
     @Override
     public void write(List<? extends Student> students) {
-        students.stream().forEach(student -> {
+        students.forEach(student -> {
             log.info("Enregistrement en base de l'objet {}", student);
             studentService.insertStudent(student);
         });
     }
+    
+    
 }
