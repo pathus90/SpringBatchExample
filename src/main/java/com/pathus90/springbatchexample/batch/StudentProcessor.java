@@ -3,7 +3,9 @@ package com.pathus90.springbatchexample.batch;
 import org.springframework.batch.item.ItemProcessor;
 
 import com.pathus90.springbatchexample.model.Student;
+import org.springframework.stereotype.Component;
 
+@Component
 public class StudentProcessor implements ItemProcessor<Student, Student> {
 
     @Override
